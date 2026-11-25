@@ -210,7 +210,7 @@ class CategoryActivity : Activity() {
 
     inner class Adapter : BaseAdapter() {
         override fun getCount() = shown.size
-        override fun getItem(p: Int) = shown[p]
+        override fun getItem(p: Int): Any = shown[p]
         override fun getItemId(p: Int) = p.toLong()
         override fun getView(p: Int, v: View?, parent: ViewGroup?): View {
             val item = shown[p]

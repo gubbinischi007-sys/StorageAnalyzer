@@ -15,7 +15,7 @@ import android.widget.*
 import java.io.File
 
 class LeftoverActivity : Activity() {
-    private class Cand(val dir: File, val where: String, val size: Long, val count: Int, val likely: Boolean) {
+    class Cand(val dir: File, val where: String, val size: Long, val count: Int, val likely: Boolean) {
         var checked = false
     }
 
@@ -178,7 +178,7 @@ class LeftoverActivity : Activity() {
 
     inner class Adapter : BaseAdapter() {
         override fun getCount() = items.size
-        override fun getItem(p: Int) = items[p]
+        override fun getItem(p: Int): Any = items[p]
         override fun getItemId(p: Int) = p.toLong()
         override fun getView(p: Int, v: View?, parent: ViewGroup?): View {
             val c = items[p]

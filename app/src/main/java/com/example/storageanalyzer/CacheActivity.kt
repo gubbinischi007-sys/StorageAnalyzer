@@ -19,7 +19,7 @@ import android.view.ViewGroup
 import android.widget.*
 
 class CacheActivity : Activity() {
-    private class Row(val label: String, val pkg: String, val icon: Drawable?, val cache: Long)
+    class Row(val label: String, val pkg: String, val icon: Drawable?, val cache: Long)
 
     private val rows = mutableListOf<Row>()
     private var initialTotal = -1L
@@ -102,7 +102,7 @@ class CacheActivity : Activity() {
 
     inner class Adapter : BaseAdapter() {
         override fun getCount() = rows.size
-        override fun getItem(p: Int) = rows[p]
+        override fun getItem(p: Int): Any = rows[p]
         override fun getItemId(p: Int) = p.toLong()
         override fun getView(p: Int, v: View?, parent: ViewGroup?): View {
             val r = rows[p]

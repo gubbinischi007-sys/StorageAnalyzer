@@ -26,7 +26,7 @@ import java.io.File
  * thumbnail caches and media hidden from the Gallery by a .nomedia file.
  */
 class HiddenActivity : Activity() {
-    private class Entry(val file: File, val kind: String, val size: Long, val count: Int) {
+    class Entry(val file: File, val kind: String, val size: Long, val count: Int) {
         var checked = false
     }
 
@@ -230,7 +230,7 @@ class HiddenActivity : Activity() {
 
     inner class Adapter : BaseAdapter() {
         override fun getCount() = items.size
-        override fun getItem(p: Int) = items[p]
+        override fun getItem(p: Int): Any = items[p]
         override fun getItemId(p: Int) = p.toLong()
         override fun getView(p: Int, v: View?, parent: ViewGroup?): View {
             val e = items[p]

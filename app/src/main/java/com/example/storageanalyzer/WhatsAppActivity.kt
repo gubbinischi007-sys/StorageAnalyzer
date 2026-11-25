@@ -14,7 +14,7 @@ import android.widget.*
 import java.io.File
 
 class WhatsAppActivity : Activity() {
-    private class Folder(val title: String, val dir: File, val size: Long, val count: Int, val sent: Long)
+    class Folder(val title: String, val dir: File, val size: Long, val count: Int, val sent: Long)
 
     private val folders = mutableListOf<Folder>()
     private lateinit var summary: TextView
@@ -99,7 +99,7 @@ class WhatsAppActivity : Activity() {
 
     inner class Adapter : BaseAdapter() {
         override fun getCount() = folders.size
-        override fun getItem(p: Int) = folders[p]
+        override fun getItem(p: Int): Any = folders[p]
         override fun getItemId(p: Int) = p.toLong()
         override fun getView(p: Int, v: View?, parent: ViewGroup?): View {
             val f = folders[p]

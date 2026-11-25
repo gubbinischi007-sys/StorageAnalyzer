@@ -115,7 +115,7 @@ class AppsActivity : Activity() {
 
     inner class Adapter : BaseAdapter() {
         override fun getCount() = apps.size
-        override fun getItem(p: Int) = apps[p]
+        override fun getItem(p: Int): Any = apps[p]
         override fun getItemId(p: Int) = p.toLong()
         override fun getView(p: Int, v: View?, parent: ViewGroup?): View {
             val a = apps[p]

@@ -20,6 +20,7 @@ import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.*
+import java.io.File
 import java.util.concurrent.Executors
 
 data class AppStat(
@@ -35,8 +36,10 @@ data class AppStat(
 class AppsActivity : Activity() {
     private val apps = mutableListOf<AppStat>()
     private var sortByCache = false
-    private var askedPermission = false
     private var scanning = false
+    private lateinit var permissionBanner: LinearLayout
+    private lateinit var bannerText: TextView
+    private lateinit var statusText: TextView
     private lateinit var toggleBtn: TextView
     private lateinit var adapter: Adapter
     private val iconCache = LruCache<String, Drawable>(150)
@@ -85,8 +88,46 @@ class AppsActivity : Activity() {
         sub.text = "App = the app itself · Data = logins, chats, downloads (keep) · Cache = temporary (safe to clear)"
         sub.textSize = 12f
         sub.setTextColor(ThemeColors.TEXT_MUTED)
-        sub.setPadding(ThemeColors.dp(this, 2f), 0, 0, ThemeColors.dp(this, 14f))
+        sub.setPadding(ThemeColors.dp(this, 2f), 0, 0, ThemeColors.dp(this, 12f))
         root.addView(sub)
+
+        // Permission Banner (interactive)
+        permissionBanner = LinearLayout(this)
+        permissionBanner.orientation = LinearLayout.VERTICAL
+        permissionBanner.background = ThemeColors.roundedBg(ThemeColors.CARD_SECONDARY, 14f, this)
+        val bp = ThemeColors.dp(this, 14f)
+        permissionBanner.setPadding(bp, bp, bp, bp)
+        val bLp2 = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+        bLp2.bottomMargin = ThemeColors.dp(this, 12f)
+        permissionBanner.layoutParams = bLp2
+
+        val bannerTitle = TextView(this)
+        bannerTitle.text = "⚠️ Usage Access Required"
+        bannerTitle.textSize = 14f
+        bannerTitle.setTextColor(ThemeColors.COLOR_MEDIA)
+        bannerTitle.setTypeface(bannerTitle.typeface, Typeface.BOLD)
+
+        bannerText = TextView(this)
+        bannerText.text = "Tap here to open Settings and permit \"Usage access\" for Storage Analyzer so it can read app storage and cache sizes."
+        bannerText.textSize = 12f
+        bannerText.setTextColor(ThemeColors.TEXT_WHITE)
+        bannerText.setPadding(0, ThemeColors.dp(this, 4f), 0, 0)
+
+        permissionBanner.addView(bannerTitle)
+        permissionBanner.addView(bannerText)
+        permissionBanner.setOnClickListener {
+            startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
+        }
+        permissionBanner.visibility = View.GONE
+        root.addView(permissionBanner)
+
+        // Loading Status Text
+        statusText = TextView(this)
+        statusText.textSize = 13f
+        statusText.setTextColor(ThemeColors.TEXT_MUTED)
+        statusText.setPadding(ThemeColors.dp(this, 4f), 0, 0, ThemeColors.dp(this, 8f))
+        statusText.visibility = View.GONE
+        root.addView(statusText)
 
         // Pill button: "Sorted by: Total size (tap to change)"
         toggleBtn = TextView(this)
@@ -103,7 +144,7 @@ class AppsActivity : Activity() {
             resort()
         }
         val tLp = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-        tLp.bottomMargin = ThemeColors.dp(this, 14f)
+        tLp.bottomMargin = ThemeColors.dp(this, 12f)
         toggleBtn.layoutParams = tLp
         root.addView(toggleBtn)
 
@@ -121,20 +162,42 @@ class AppsActivity : Activity() {
         setContentView(root)
     }
 
-    private fun hasUsageAccess(): Boolean {
-        val ops = getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
-        return ops.unsafeCheckOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), packageName) == AppOpsManager.MODE_ALLOWED
+    private fun checkUsageAccess(): Boolean {
+        return try {
+            val ops = getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
+            val mode = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                ops.unsafeCheckOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), packageName)
+            } else {
+                @Suppress("DEPRECATION")
+                ops.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), packageName)
+            }
+            if (mode == AppOpsManager.MODE_ALLOWED) {
+                true
+            } else {
+                // Direct test query on our own package: if it succeeds without SecurityException, access is granted
+                val ssm = getSystemService(Context.STORAGE_STATS_SERVICE) as StorageStatsManager
+                ssm.queryStatsForPackage(StorageManager.UUID_DEFAULT, packageName, Process.myUserHandle())
+                true
+            }
+        } catch (_: SecurityException) {
+            false
+        } catch (_: Exception) {
+            false
+        }
     }
 
     override fun onResume() {
         super.onResume()
-        if (!hasUsageAccess()) {
-            if (!askedPermission) {
-                askedPermission = true
-                startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
+        val hasAccess = checkUsageAccess()
+        if (!hasAccess) {
+            permissionBanner.visibility = View.VISIBLE
+            statusText.text = "Waiting for Usage Access permission in Settings..."
+            statusText.visibility = View.VISIBLE
+        } else {
+            permissionBanner.visibility = View.GONE
+            if (!scanning) {
+                fastScan()
             }
-        } else if (!scanning && apps.isEmpty()) {
-            fastScan()
         }
     }
 
@@ -145,13 +208,16 @@ class AppsActivity : Activity() {
 
     private fun fastScan() {
         scanning = true
+        statusText.text = "Loading apps..."
+        statusText.visibility = View.VISIBLE
+
         Thread {
             val pm = packageManager
             val ssm = getSystemService(Context.STORAGE_STATS_SERVICE) as StorageStatsManager
             val userHandle = Process.myUserHandle()
             val installed = pm.getInstalledApplications(0)
 
-            // Prioritize user apps & launchable apps (fast 90% reduction in binder latency)
+            // Include all apps, prioritizing user and launchable apps
             val launchable = installed.filter {
                 ((it.flags and ApplicationInfo.FLAG_SYSTEM) == 0) || (pm.getLaunchIntentForPackage(it.packageName) != null)
             }
@@ -159,13 +225,25 @@ class AppsActivity : Activity() {
 
             val list = mutableListOf<AppStat>()
             for (ai in targetApps) {
+                var apk = 0L
+                var data = 0L
+                var cache = 0L
                 try {
-                    val s = ssm.queryStatsForPackage(StorageManager.UUID_DEFAULT, ai.packageName, userHandle)
-                    val cache = s.cacheBytes
-                    val data = (s.dataBytes - cache).coerceAtLeast(0)
-                    val label = ai.loadLabel(pm).toString()
-                    list.add(AppStat(label, ai.packageName, s.appBytes, data, cache))
-                } catch (_: Exception) {}
+                    val uuid = ai.storageUuid ?: StorageManager.UUID_DEFAULT
+                    val s = ssm.queryStatsForPackage(uuid, ai.packageName, userHandle)
+                    apk = s.appBytes
+                    cache = s.cacheBytes
+                    data = (s.dataBytes - cache).coerceAtLeast(0)
+                } catch (_: Exception) {
+                    try {
+                        apk = File(ai.sourceDir).length()
+                    } catch (_: Exception) {}
+                }
+
+                val label = try { ai.loadLabel(pm).toString() } catch (_: Exception) { ai.packageName }
+                if (apk > 0 || data > 0 || cache > 0) {
+                    list.add(AppStat(label, ai.packageName, apk, data, cache))
+                }
             }
 
             runOnUiThread {
@@ -173,6 +251,12 @@ class AppsActivity : Activity() {
                 apps.clear()
                 apps.addAll(list)
                 resort()
+                if (apps.isEmpty()) {
+                    statusText.text = "No apps found. Make sure Usage access is granted in Settings."
+                    statusText.visibility = View.VISIBLE
+                } else {
+                    statusText.visibility = View.GONE
+                }
             }
         }.start()
     }
@@ -220,14 +304,12 @@ class AppsActivity : Activity() {
                 iconView.visibility = View.VISIBLE
                 badgeTv.visibility = View.GONE
             } else {
-                // Show stylish colored letter badge immediately
                 val letter = item.label.firstOrNull()?.uppercase() ?: "A"
                 badgeTv.text = letter
                 badgeTv.setBackgroundColor(ThemeColors.appColor(item.pkg))
                 badgeTv.visibility = View.VISIBLE
                 iconView.visibility = View.GONE
 
-                // Fetch icon asynchronously in pool
                 iconPool.submit {
                     try {
                         val icon = packageManager.getApplicationIcon(item.pkg)

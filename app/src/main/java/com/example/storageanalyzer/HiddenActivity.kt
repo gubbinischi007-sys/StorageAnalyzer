@@ -47,9 +47,9 @@ class HiddenActivity : Activity() {
         root.orientation = LinearLayout.VERTICAL
         root.setPadding(24, 48, 24, 16)
         val title = TextView(this)
-        title.text = "Hidden & trash"; title.textSize = 22f; title.setTextColor(Color.BLACK)
-        gap = TextView(this); gap.textSize = 13f; gap.setPadding(8, 8, 8, 8)
-        summary = TextView(this); summary.textSize = 13f; summary.setPadding(8, 8, 8, 8)
+        title.text = "Hidden & trash"; title.textSize = 22f; title.setTextColor(ThemeColors.TEXT_WHITE)
+        gap = TextView(this); gap.textSize = 13f; gap.setPadding(8, 8, 8, 8); gap.setTextColor(ThemeColors.TEXT_MUTED)
+        summary = TextView(this); summary.textSize = 13f; summary.setPadding(8, 8, 8, 8); summary.setTextColor(ThemeColors.TEXT_MUTED)
         summary.setOnClickListener { if (!Environment.isExternalStorageManager()) requestAccess() }
         val refresh = Button(this)
         refresh.text = "Refresh media index"
@@ -243,7 +243,7 @@ class HiddenActivity : Activity() {
             val col = LinearLayout(this@HiddenActivity)
             col.orientation = LinearLayout.VERTICAL; col.setPadding(16, 0, 0, 0)
             val t1 = TextView(this@HiddenActivity)
-            t1.text = "${e.file.path.removePrefix(base)}  -  ${fmt(e.size)}"; t1.textSize = 14f; t1.setTextColor(Color.BLACK)
+            t1.text = "${e.file.path.removePrefix(base)}  -  ${fmt(e.size)}"; t1.textSize = 14f; t1.setTextColor(ThemeColors.TEXT_WHITE)
             val t2 = TextView(this@HiddenActivity)
             t2.text = "${e.kind}  |  ${e.count} files"; t2.textSize = 12f
             t2.setTextColor(if (e.kind.startsWith("Hidden")) Color.DKGRAY else Color.parseColor("#C62828"))

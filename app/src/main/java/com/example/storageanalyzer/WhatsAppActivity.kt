@@ -30,8 +30,8 @@ class WhatsAppActivity : Activity() {
         root.orientation = LinearLayout.VERTICAL
         root.setPadding(24, 48, 24, 16)
         val title = TextView(this)
-        title.text = "WhatsApp media"; title.textSize = 22f; title.setTextColor(Color.BLACK)
-        summary = TextView(this); summary.textSize = 13f; summary.setPadding(8, 8, 8, 16)
+        title.text = "WhatsApp media"; title.textSize = 22f; title.setTextColor(ThemeColors.TEXT_WHITE)
+        summary = TextView(this); summary.textSize = 13f; summary.setPadding(8, 8, 8, 16); summary.setTextColor(ThemeColors.TEXT_MUTED)
         summary.setOnClickListener { if (!Environment.isExternalStorageManager()) requestAccess() }
         val list = ListView(this)
         adapter = Adapter()
@@ -105,7 +105,7 @@ class WhatsAppActivity : Activity() {
             val f = folders[p]
             val col = LinearLayout(this@WhatsAppActivity)
             col.orientation = LinearLayout.VERTICAL; col.setPadding(16, 24, 16, 24)
-            val t1 = TextView(this@WhatsAppActivity); t1.text = "${f.title}  -  ${fmt(f.size)}"; t1.textSize = 16f; t1.setTextColor(Color.BLACK)
+            val t1 = TextView(this@WhatsAppActivity); t1.text = "${f.title}  -  ${fmt(f.size)}"; t1.textSize = 16f; t1.setTextColor(ThemeColors.TEXT_WHITE)
             val t2 = TextView(this@WhatsAppActivity); t2.text = "${f.count} files  |  Sent copies: ${fmt(f.sent)}"; t2.textSize = 12f; t2.setTextColor(Color.DKGRAY)
             col.addView(t1); col.addView(t2)
             return col

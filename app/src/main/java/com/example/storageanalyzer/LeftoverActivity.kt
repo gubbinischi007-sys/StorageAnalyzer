@@ -43,8 +43,8 @@ class LeftoverActivity : Activity() {
         root.orientation = LinearLayout.VERTICAL
         root.setPadding(24, 48, 24, 16)
         val title = TextView(this)
-        title.text = "Leftover folders"; title.textSize = 22f; title.setTextColor(Color.BLACK)
-        summary = TextView(this); summary.textSize = 13f; summary.setPadding(8, 8, 8, 8)
+        title.text = "Leftover folders"; title.textSize = 22f; title.setTextColor(ThemeColors.TEXT_WHITE)
+        summary = TextView(this); summary.textSize = 13f; summary.setPadding(8, 8, 8, 8); summary.setTextColor(ThemeColors.TEXT_MUTED)
         summary.setOnClickListener { if (!Environment.isExternalStorageManager()) requestAccess() }
         val list = ListView(this)
         adapter = Adapter()
@@ -190,7 +190,7 @@ class LeftoverActivity : Activity() {
             val col = LinearLayout(this@LeftoverActivity)
             col.orientation = LinearLayout.VERTICAL; col.setPadding(16, 0, 0, 0)
             val t1 = TextView(this@LeftoverActivity)
-            t1.text = "${c.dir.name}  -  ${fmt(c.size)}"; t1.textSize = 15f; t1.setTextColor(Color.BLACK)
+            t1.text = "${c.dir.name}  -  ${fmt(c.size)}"; t1.textSize = 15f; t1.setTextColor(ThemeColors.TEXT_WHITE)
             val t2 = TextView(this@LeftoverActivity)
             t2.text = (if (c.likely) "Likely leftover" else "Check first") + "  |  ${c.where}  |  ${c.count} files"
             t2.textSize = 12f

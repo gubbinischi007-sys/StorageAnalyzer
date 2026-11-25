@@ -45,8 +45,10 @@ class AppDetailActivity : Activity() {
         pkg = intent.getStringExtra(EXTRA_PKG) ?: ""
         holder = LinearLayout(this)
         holder.orientation = LinearLayout.VERTICAL
+        holder.setBackgroundColor(ThemeColors.BG_DARK)
         holder.setPadding(32, 64, 32, 48)
         val sv = ScrollView(this)
+        sv.setBackgroundColor(ThemeColors.BG_DARK)
         sv.addView(holder)
         setContentView(sv)
     }
@@ -96,10 +98,10 @@ class AppDetailActivity : Activity() {
         val r = LinearLayout(this)
         r.orientation = LinearLayout.VERTICAL
         r.setPadding(32, 28, 32, 28)
-        val bg = GradientDrawable(); bg.setColor(Color.parseColor("#F1F3F4")); bg.cornerRadius = 28f
+        val bg = ThemeColors.roundedBg(ThemeColors.CARD_DARK, 16f, this)
         r.background = bg
-        r.addView(text(title, 16f, Color.BLACK))
-        r.addView(text(sub, 12f, Color.DKGRAY))
+        r.addView(text(title, 16f, ThemeColors.TEXT_WHITE))
+        r.addView(text(sub, 12f, ThemeColors.TEXT_MUTED))
         if (onClick != null) { r.isClickable = true; r.setOnClickListener { onClick() } }
         return r
     }
@@ -116,7 +118,7 @@ class AppDetailActivity : Activity() {
         head.orientation = LinearLayout.HORIZONTAL; head.gravity = Gravity.CENTER_VERTICAL
         val iv = ImageView(this); iv.setImageDrawable(icon)
         head.addView(iv, LinearLayout.LayoutParams(120, 120))
-        val name = text(label, 22f, Color.BLACK, true); name.setPadding(24, 0, 0, 0)
+        val name = text(label, 22f, ThemeColors.TEXT_WHITE, true); name.setPadding(24, 0, 0, 0)
         head.addView(name)
         holder.addView(head)
 
@@ -134,13 +136,13 @@ class AppDetailActivity : Activity() {
         addTo(holder, userRow)
         holder.addView(box)
 
-        addTo(box, text("Inside user data (private to the app)", 14f, Color.BLACK, true))
-        box.addView(text(typical[pkg] ?: "Accounts and login, settings, databases and offline files the app keeps for itself.", 13f, Color.DKGRAY))
-        box.addView(text("Android seals each app's private folder, so no other app can open or clear it. You can reset it with Clear storage in the app's settings; that logs you out and removes offline data.", 12f, Color.DKGRAY))
+        addTo(box, text("Inside user data (private to the app)", 14f, ThemeColors.TEXT_WHITE, true))
+        box.addView(text(typical[pkg] ?: "Accounts and login, settings, databases and offline files the app keeps for itself.", 13f, ThemeColors.TEXT_MUTED))
+        box.addView(text("Android seals each app's private folder, so no other app can open or clear it. You can reset it with Clear storage in the app's settings; that logs you out and removes offline data.", 12f, ThemeColors.TEXT_MUTED))
 
-        addTo(box, text("Also saved in your storage by this app (counted separately)", 14f, Color.BLACK, true))
+        addTo(box, text("Also saved in your storage by this app (counted separately)", 14f, ThemeColors.TEXT_WHITE, true))
         val shared = groups.filter { it.value[1] > 0 }
-        if (shared.isEmpty()) box.addView(text("No photos, videos, audio, documents or other files found.", 12f, Color.DKGRAY))
+        if (shared.isEmpty()) box.addView(text("No photos, videos, audio, documents or other files found.", 12f, ThemeColors.TEXT_MUTED))
         for ((kind, v) in shared) {
             addTo(box, card("$kind  -  ${fmt(v[0])}", "${v[1]} files  |  tap to review and delete") {
                 startActivity(Intent(this, CategoryActivity::class.java)

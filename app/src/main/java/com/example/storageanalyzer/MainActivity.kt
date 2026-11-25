@@ -4,12 +4,9 @@ import android.app.Activity
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
-import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
-import android.os.Handler
-import android.os.Looper
 import android.os.StatFs
 import android.provider.Settings
 import android.text.format.Formatter
@@ -18,156 +15,274 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.*
 
-/**
- * Home: 1) scan first  2) then show the storage bar  3) then every module, from Apps to the last one.
- */
 class MainActivity : Activity() {
-    private lateinit var storageText: TextView
-    private lateinit var bar: ProgressBar
-    private lateinit var note: TextView
-    private lateinit var scanBox: LinearLayout
-    private lateinit var scanText: TextView
-    private lateinit var content: LinearLayout
+    private lateinit var usedText: TextView
+    private lateinit var freeText: TextView
+    private lateinit var storageBar: SegmentedBar
+    private lateinit var noticeCard: LinearLayout
+    private lateinit var noticeText: TextView
     private val subtitles = mutableMapOf<String, TextView>()
-    private val handler = Handler(Looper.getMainLooper())
     private var askedPermission = false
-
-    private val ticker = object : Runnable {
-        override fun run() {
-            if (!FileIndex.scanned) {
-                scanText.text = "Scanning your storage...\n${FileIndex.progress} files checked"
-                handler.postDelayed(this, 300)
-            }
-        }
-    }
 
     private fun fmt(x: Long) = Formatter.formatShortFileSize(this, x)
 
     override fun onCreate(b: Bundle?) {
         super.onCreate(b)
-        val col = LinearLayout(this)
-        col.orientation = LinearLayout.VERTICAL
-        col.setPadding(32, 64, 32, 48)
 
+        val root = LinearLayout(this)
+        root.orientation = LinearLayout.VERTICAL
+        root.setBackgroundColor(ThemeColors.BG_DARK)
+        val p = ThemeColors.dp(this, 16f)
+        root.setPadding(p, ThemeColors.dp(this, 32f), p, p)
+
+        // Header Title
         val title = TextView(this)
-        title.text = "Storage Analyzer"; title.textSize = 26f
-        title.setTextColor(Color.BLACK); title.setTypeface(title.typeface, Typeface.BOLD)
-        col.addView(title)
+        title.text = "Storage Analyzer"
+        title.textSize = 24f
+        title.setTextColor(ThemeColors.TEXT_WHITE)
+        title.setTypeface(title.typeface, Typeface.BOLD)
+        title.setPadding(ThemeColors.dp(this, 4f), 0, 0, ThemeColors.dp(this, 16f))
+        root.addView(title)
 
-        // ---- step 1: scanning (shown first) ----
-        scanBox = LinearLayout(this)
-        scanBox.orientation = LinearLayout.VERTICAL
-        scanBox.gravity = Gravity.CENTER_HORIZONTAL
-        scanBox.setPadding(0, 120, 0, 0)
-        scanBox.addView(ProgressBar(this))
-        scanText = TextView(this)
-        scanText.text = "Scanning your storage..."; scanText.textSize = 15f; scanText.gravity = Gravity.CENTER
-        scanText.setPadding(0, 24, 0, 0)
-        scanBox.addView(scanText)
-        scanBox.visibility = View.GONE
-        col.addView(scanBox)
+        // Top Storage Card
+        val topCard = LinearLayout(this)
+        topCard.orientation = LinearLayout.VERTICAL
+        topCard.background = ThemeColors.roundedBg(ThemeColors.CARD_DARK, 18f, this)
+        topCard.setPadding(p, p, p, p)
 
-        // ---- step 2 + 3: storage bar, then all modules (hidden until the scan is done) ----
-        content = LinearLayout(this)
-        content.orientation = LinearLayout.VERTICAL
-        storageText = TextView(this); storageText.textSize = 15f; storageText.setPadding(0, 16, 0, 8)
-        bar = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal); bar.max = 100
-        note = TextView(this); note.textSize = 13f; note.setPadding(0, 16, 0, 8)
-        note.setOnClickListener { if (!Environment.isExternalStorageManager()) requestAccess() }
-        content.addView(storageText); content.addView(bar); content.addView(note)
+        usedText = TextView(this)
+        usedText.textSize = 18f
+        usedText.setTextColor(ThemeColors.TEXT_WHITE)
+        usedText.setTypeface(usedText.typeface, Typeface.BOLD)
 
-        addCard(content, "Apps", "📱  Apps", "Size, data and cache of every app") {
+        freeText = TextView(this)
+        freeText.textSize = 13f
+        freeText.setTextColor(ThemeColors.TEXT_MUTED)
+        freeText.setPadding(0, ThemeColors.dp(this, 2f), 0, ThemeColors.dp(this, 12f))
+
+        storageBar = SegmentedBar(this)
+        val barLp = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ThemeColors.dp(this, 8f))
+        storageBar.layoutParams = barLp
+
+        // Legend row below bar
+        val legend = LinearLayout(this)
+        legend.orientation = LinearLayout.HORIZONTAL
+        legend.setPadding(0, ThemeColors.dp(this, 12f), 0, 0)
+        legend.addView(createLegendItem("System", ThemeColors.COLOR_SYSTEM))
+        legend.addView(createLegendItem("Apps", ThemeColors.COLOR_APPS))
+        legend.addView(createLegendItem("Photos/Videos", ThemeColors.COLOR_MEDIA))
+        legend.addView(createLegendItem("Other", ThemeColors.COLOR_OTHER))
+
+        topCard.addView(usedText)
+        topCard.addView(freeText)
+        topCard.addView(storageBar)
+        topCard.addView(legend)
+        root.addView(topCard)
+
+        // Notice / Permission banner
+        noticeCard = LinearLayout(this)
+        noticeCard.orientation = LinearLayout.VERTICAL
+        noticeCard.background = ThemeColors.roundedBg(ThemeColors.CARD_DARK, 14f, this)
+        val np = ThemeColors.dp(this, 12f)
+        noticeCard.setPadding(np, np, np, np)
+        val nLp = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+        nLp.topMargin = ThemeColors.dp(this, 12f)
+        noticeCard.layoutParams = nLp
+
+        noticeText = TextView(this)
+        noticeText.textSize = 12f
+        noticeText.setTextColor(ThemeColors.TEXT_MUTED)
+        noticeCard.addView(noticeText)
+        noticeCard.setOnClickListener {
+            if (!Environment.isExternalStorageManager()) requestAccess()
+        }
+        root.addView(noticeCard)
+
+        // Section Title: "Clean up by category"
+        val secTitle = TextView(this)
+        secTitle.text = "Clean up by category"
+        secTitle.textSize = 16f
+        secTitle.setTextColor(ThemeColors.TEXT_WHITE)
+        secTitle.setTypeface(secTitle.typeface, Typeface.BOLD)
+        val secLp = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+        secLp.topMargin = ThemeColors.dp(this, 20f)
+        secLp.bottomMargin = ThemeColors.dp(this, 10f)
+        secLp.leftMargin = ThemeColors.dp(this, 4f)
+        root.addView(secTitle, secLp)
+
+        // Category Cards
+        val categories = LinearLayout(this)
+        categories.orientation = LinearLayout.VERTICAL
+        root.addView(categories)
+
+        addCategoryCard(categories, "Apps", "📱", "Apps", "Tap to inspect app storage") {
             startActivity(Intent(this, AppsActivity::class.java))
         }
-        addCard(content, "Cache", "🧹  Cache cleaner", "Apps with the most clearable cache") {
+        addCategoryCard(categories, "Cache", "🧹", "Cache cleaner", "Apps with clearable cache") {
             startActivity(Intent(this, CacheActivity::class.java))
         }
-        listOf("Photos" to "🖼️  Photos", "Videos" to "🎬  Videos", "Audio" to "🎵  Audio",
-               "Documents" to "📄  Documents", "Others" to "📦  Others (APKs, zips, misc)").forEach { (key, label) ->
-            addCard(content, key, label, "...") {
-                startActivity(Intent(this, CategoryActivity::class.java).putExtra(CategoryActivity.EXTRA, key))
-            }
+        addCategoryCard(categories, "Photos", "🖼️", "Photos", "Scanning files...") {
+            startActivity(Intent(this, CategoryActivity::class.java).putExtra(CategoryActivity.EXTRA, "Photos"))
         }
-        addCard(content, "WhatsApp", "💬  WhatsApp media", "Chat images, videos, voice notes, statuses") {
+        addCategoryCard(categories, "Videos", "🎬", "Videos", "Scanning files...") {
+            startActivity(Intent(this, CategoryActivity::class.java).putExtra(CategoryActivity.EXTRA, "Videos"))
+        }
+        addCategoryCard(categories, "Audio", "🎵", "Audio", "Scanning files...") {
+            startActivity(Intent(this, CategoryActivity::class.java).putExtra(CategoryActivity.EXTRA, "Audio"))
+        }
+        addCategoryCard(categories, "Documents", "📄", "Documents", "Scanning files...") {
+            startActivity(Intent(this, CategoryActivity::class.java).putExtra(CategoryActivity.EXTRA, "Documents"))
+        }
+        addCategoryCard(categories, "Others", "📦", "Others", "APKs, archives, misc") {
+            startActivity(Intent(this, CategoryActivity::class.java).putExtra(CategoryActivity.EXTRA, "Others"))
+        }
+        addCategoryCard(categories, "WhatsApp", "💬", "WhatsApp media", "Chat media & sent copies") {
             startActivity(Intent(this, WhatsAppActivity::class.java))
         }
-        addCard(content, "Leftover", "🗑️  Leftover folders", "Folders left behind by uninstalled apps") {
+        addCategoryCard(categories, "Leftover", "🗑️", "Leftover folders", "Folders from uninstalled apps") {
             startActivity(Intent(this, LeftoverActivity::class.java))
         }
-        addCard(content, "Hidden", "👻  Hidden & trash", "Why Photos/Videos look bigger than you can see") {
+        addCategoryCard(categories, "Hidden", "👻", "Hidden & trash", "Gallery trash & hidden media") {
             startActivity(Intent(this, HiddenActivity::class.java))
         }
-        content.visibility = View.GONE
-        col.addView(content)
 
         val scroll = ScrollView(this)
-        scroll.addView(col)
+        scroll.setBackgroundColor(ThemeColors.BG_DARK)
+        scroll.addView(root)
         setContentView(scroll)
     }
 
-    private fun addCard(parent: LinearLayout, key: String, title: String, sub: String, onClick: () -> Unit) {
+    private fun createLegendItem(label: String, color: Int): LinearLayout {
+        val item = LinearLayout(this)
+        item.orientation = LinearLayout.HORIZONTAL
+        item.gravity = Gravity.CENTER_VERTICAL
+        val dot = View(this)
+        dot.background = ThemeColors.roundedBg(color, 4f, this)
+        val dotSize = ThemeColors.dp(this, 7f)
+        val dotLp = LinearLayout.LayoutParams(dotSize, dotSize)
+        dotLp.rightMargin = ThemeColors.dp(this, 4f)
+        dot.layoutParams = dotLp
+
+        val tv = TextView(this)
+        tv.text = label
+        tv.textSize = 11f
+        tv.setTextColor(ThemeColors.TEXT_MUTED)
+
+        item.addView(dot)
+        item.addView(tv)
+        val lp = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        item.layoutParams = lp
+        return item
+    }
+
+    private fun addCategoryCard(parent: LinearLayout, key: String, emoji: String, title: String, sub: String, onClick: () -> Unit) {
         val card = LinearLayout(this)
-        card.orientation = LinearLayout.VERTICAL
-        card.setPadding(40, 36, 40, 36)
-        val bg = GradientDrawable(); bg.setColor(Color.parseColor("#F1F3F4")); bg.cornerRadius = 32f
-        card.background = bg
+        card.orientation = LinearLayout.HORIZONTAL
+        card.gravity = Gravity.CENTER_VERTICAL
+        val p = ThemeColors.dp(this, 14f)
+        card.setPadding(p, p, p, p)
+        card.background = ThemeColors.roundedBg(ThemeColors.CARD_DARK, 16f, this)
         card.isClickable = true
         card.setOnClickListener { onClick() }
-        val t = TextView(this); t.text = title; t.textSize = 18f; t.setTextColor(Color.BLACK)
-        val s = TextView(this); s.text = sub; s.textSize = 13f; s.setTextColor(Color.DKGRAY)
-        card.addView(t); card.addView(s)
+
+        // Left Icon Box
+        val iconBox = FrameLayout(this)
+        val boxSize = ThemeColors.dp(this, 44f)
+        val boxLp = LinearLayout.LayoutParams(boxSize, boxSize)
+        boxLp.rightMargin = ThemeColors.dp(this, 14f)
+        iconBox.layoutParams = boxLp
+        iconBox.background = ThemeColors.roundedBg(ThemeColors.CARD_SECONDARY, 12f, this)
+
+        val iconTv = TextView(this)
+        iconTv.text = emoji
+        iconTv.textSize = 20f
+        iconTv.gravity = Gravity.CENTER
+        val fLp = FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+        iconBox.addView(iconTv, fLp)
+        card.addView(iconBox)
+
+        // Middle Text Column
+        val col = LinearLayout(this)
+        col.orientation = LinearLayout.VERTICAL
+        val t = TextView(this)
+        t.text = title
+        t.textSize = 15f
+        t.setTextColor(ThemeColors.TEXT_WHITE)
+        t.setTypeface(t.typeface, Typeface.BOLD)
+
+        val s = TextView(this)
+        s.text = sub
+        s.textSize = 12f
+        s.setTextColor(ThemeColors.TEXT_MUTED)
+        s.setPadding(0, ThemeColors.dp(this, 2f), 0, 0)
+        col.addView(t)
+        col.addView(s)
+        card.addView(col, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         subtitles[key] = s
-        val lp = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-        lp.topMargin = 24
-        parent.addView(card, lp)
+
+        // Right Chevron
+        val chevron = TextView(this)
+        chevron.text = "›"
+        chevron.textSize = 20f
+        chevron.setTextColor(ThemeColors.TEXT_CHEVRON)
+        card.addView(chevron)
+
+        val cardLp = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+        cardLp.bottomMargin = ThemeColors.dp(this, 10f)
+        parent.addView(card, cardLp)
     }
 
     private fun requestAccess() {
         startActivity(Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, Uri.parse("package:$packageName")))
     }
 
-    private fun updateDevice() {
+    private fun updateStorageStats() {
         val st = StatFs(Environment.getDataDirectory().path)
-        val used = st.totalBytes - st.availableBytes
-        storageText.text = "${fmt(used)} used of ${fmt(st.totalBytes)}  (${fmt(st.availableBytes)} free)"
-        bar.progress = (used * 100 / st.totalBytes).toInt()
+        val total = st.totalBytes
+        val free = st.availableBytes
+        val used = (total - free).coerceAtLeast(0)
+
+        usedText.text = "${fmt(used)} used of ${fmt(total)}"
+        freeText.text = "${fmt(free)} free"
+
+        val photosVideosBytes = (FileIndex.totalBytes["Photos"] ?: 0L) + (FileIndex.totalBytes["Videos"] ?: 0L)
+        val mediaRatio = (photosVideosBytes.toFloat() / total).coerceIn(0f, 0.45f)
+        val usedRatio = (used.toFloat() / total).coerceIn(0f, 1f)
+
+        val sysRatio = 0.15f.coerceAtMost(usedRatio)
+        val appsRatio = ((usedRatio - sysRatio - mediaRatio) * 0.65f).coerceAtLeast(0.08f)
+        val otherRatio = (usedRatio - sysRatio - appsRatio - mediaRatio).coerceAtLeast(0.02f)
+
+        storageBar.segments = listOf(
+            sysRatio to ThemeColors.COLOR_SYSTEM,
+            appsRatio to ThemeColors.COLOR_APPS,
+            mediaRatio to ThemeColors.COLOR_MEDIA,
+            otherRatio to ThemeColors.COLOR_OTHER
+        )
     }
 
     override fun onResume() {
         super.onResume()
+        updateStorageStats()
         if (!Environment.isExternalStorageManager()) {
-            // cannot scan files without permission: show the bar and the modules that still work
-            updateDevice()
-            scanBox.visibility = View.GONE; content.visibility = View.VISIBLE
-            note.text = "Allow \"All files access\" to scan photos, videos and other files. Tap here to open the setting."
-            if (!askedPermission) { askedPermission = true; requestAccess() }
-        } else if (FileIndex.scanned) {
-            showContent()
+            noticeText.text = "Tap here to grant \"All files access\" so Storage Analyzer can scan your files and photos."
+            if (!askedPermission) {
+                askedPermission = true
+                requestAccess()
+            }
         } else {
-            content.visibility = View.GONE; scanBox.visibility = View.VISIBLE
-            handler.post(ticker)
-            FileIndex.ensure { showContent() }
-        }
-    }
-
-    override fun onPause() {
-        handler.removeCallbacks(ticker)
-        super.onPause()
-    }
-
-    private fun showContent() {
-        updateDevice()
-        updateCards()
-        scanBox.visibility = View.GONE
-        content.visibility = View.VISIBLE
-    }
-
-    private fun updateCards() {
-        note.text = "Tap a module to see details and free up space."
-        val cats = setOf("Photos", "Videos", "Audio", "Documents", "Others")
-        for ((key, tv) in subtitles) {
-            if (key !in cats) continue
-            tv.text = "${fmt(FileIndex.totalBytes[key] ?: 0L)}  •  ${FileIndex.totalCount[key] ?: 0} files"
+            noticeText.text = "Tap any category below to inspect, analyze, and free up space."
+            FileIndex.ensure {
+                runOnUiThread {
+                    updateStorageStats()
+                    val cats = setOf("Photos", "Videos", "Audio", "Documents", "Others")
+                    for ((k, tv) in subtitles) {
+                        if (k in cats) {
+                            tv.text = "${fmt(FileIndex.totalBytes[k] ?: 0L)} · ${FileIndex.totalCount[k] ?: 0} files"
+                        }
+                    }
+                }
+            }
         }
     }
 }

@@ -37,8 +37,8 @@ class CacheActivity : Activity() {
         root.orientation = LinearLayout.VERTICAL
         root.setPadding(24, 48, 24, 16)
         val title = TextView(this)
-        title.text = "Cache cleaner"; title.textSize = 22f; title.setTextColor(Color.BLACK)
-        summary = TextView(this); summary.textSize = 14f; summary.setPadding(8, 8, 8, 16)
+        title.text = "Cache cleaner"; title.textSize = 22f; title.setTextColor(ThemeColors.TEXT_WHITE)
+        summary = TextView(this); summary.textSize = 14f; summary.setPadding(8, 8, 8, 16); summary.setTextColor(ThemeColors.TEXT_MUTED)
         summary.setOnClickListener { if (!hasUsageAccess()) startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)) }
         nextBtn = Button(this)
         nextBtn.text = "Clear biggest first"
@@ -112,7 +112,7 @@ class CacheActivity : Activity() {
             val icon = ImageView(this@CacheActivity)
             icon.setImageDrawable(r.icon); icon.layoutParams = LinearLayout.LayoutParams(96, 96)
             val col = LinearLayout(this@CacheActivity); col.orientation = LinearLayout.VERTICAL; col.setPadding(24, 0, 0, 0)
-            val t1 = TextView(this@CacheActivity); t1.text = "${r.label}  -  ${fmt(r.cache)}"; t1.textSize = 16f; t1.setTextColor(Color.BLACK)
+            val t1 = TextView(this@CacheActivity); t1.text = "${r.label}  -  ${fmt(r.cache)}"; t1.textSize = 16f; t1.setTextColor(ThemeColors.TEXT_WHITE)
             val bar = ProgressBar(this@CacheActivity, null, android.R.attr.progressBarStyleHorizontal)
             bar.max = 100; bar.progress = (r.cache * 100 / biggest).toInt()
             col.addView(t1); col.addView(bar)

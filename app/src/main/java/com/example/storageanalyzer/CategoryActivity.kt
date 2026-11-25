@@ -53,8 +53,8 @@ class CategoryActivity : Activity() {
         root.setPadding(24, 48, 24, 16)
 
         val title = TextView(this)
-        title.text = intent.getStringExtra(EXTRA_TITLE) ?: category; title.textSize = 22f; title.setTextColor(Color.BLACK)
-        summary = TextView(this); summary.textSize = 13f; summary.setPadding(8, 8, 8, 8)
+        title.text = intent.getStringExtra(EXTRA_TITLE) ?: category; title.textSize = 22f; title.setTextColor(ThemeColors.TEXT_WHITE)
+        summary = TextView(this); summary.textSize = 13f; summary.setPadding(8, 8, 8, 8); summary.setTextColor(ThemeColors.TEXT_MUTED)
         summary.setOnClickListener { if (!Environment.isExternalStorageManager()) requestAccess() }
 
         sortBtn = Button(this)
@@ -230,7 +230,7 @@ class CategoryActivity : Activity() {
             }
             val col = LinearLayout(this@CategoryActivity)
             col.orientation = LinearLayout.VERTICAL; col.setPadding(16, 0, 0, 0)
-            val t1 = TextView(this@CategoryActivity); t1.text = "${item.file.name}  -  ${fmt(item.size)}"; t1.textSize = 15f; t1.setTextColor(Color.BLACK)
+            val t1 = TextView(this@CategoryActivity); t1.text = "${item.file.name}  -  ${fmt(item.size)}"; t1.textSize = 15f; t1.setTextColor(ThemeColors.TEXT_WHITE)
             val t2 = TextView(this@CategoryActivity)
             t2.text = "${DateFormat.getDateInstance().format(Date(item.modified))}  |  ${item.file.parent?.removePrefix(base) ?: ""}"
             t2.textSize = 12f; t2.setTextColor(Color.DKGRAY)
